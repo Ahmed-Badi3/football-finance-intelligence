@@ -48,7 +48,16 @@ def annee_sql(colonne):
 @st.cache_resource(show_spinner="Téléchargement de la base Transfermarkt (environ 200 Mo, une seule fois)…")
 def connexion():
     if not os.path.exists(FICHIER_BASE):
-        urllib.request.urlretrieve(URL_BASE, FICHIER_BASE)
+        # Le serveur refuse le « User-Agent » par défaut de Python : on se présente comme un navigateur.
+        requete = urllib.request.Request(URL_BASE, headers={"User-Agent": "Mozilla/5.0"})
+        fichier_temp = FICHIER_BASE + ".part"
+        with urllib.request.urlopen(requete, timeout=300) as reponse, open(fichier_temp, "wb") as f:
+            while True:
+                bloc = reponse.read(1024 * 1024)
+                if not bloc:
+                    break
+                f.write(bloc)
+        os.replace(fichier_temp, FICHIER_BASE)   # le fichier n'existe qu'une fois complet
     con = duckdb.connect(FICHIER_BASE, read_only=True)
     con.execute("SET memory_limit = '700MB'")
     return con
